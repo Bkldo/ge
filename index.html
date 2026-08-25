@@ -464,7 +464,7 @@
                 const level = getVal(COL_LEVEL);
                 const cert = getVal(COL_CERT);
 
-                if(!name || name.includes('เลือก') || name.includes('ชื่อ - นามสกุล')) return;
+                if(!name || name.includes('เลือก') || name.includes('ชื่อ-นามสกุล') || name.includes('ชื่อ - นามสกุล')) return;
 
                 const isEmployee = level.includes('ลูกจ้าง') || EMPLOYEE_KEYWORDS.some(k => level.includes(k) || position.includes(k));
 

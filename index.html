@@ -307,7 +307,8 @@
                             globalData = processSheetData(jsonData.table.rows);
                             
                             if (globalData.length === 0) {
-                                loadMockData();
+                                populateFilters(globalData);
+                                applyFilter();
                                 return;
                             }
 
@@ -345,12 +346,20 @@
             const script = document.createElement('script');
             script.id = 'g-sheet-script';
             script.src = sheetUrl + '&_ts=' + new Date().getTime();
-            script.onerror = () => loadMockData(); 
+            script.onerror = () => {
+                isDataLoaded = true;
+                globalData = [];
+                populateFilters(globalData);
+                applyFilter();
+            }; 
             document.head.appendChild(script);
 
             setTimeout(() => {
                 if (!isDataLoaded) {
-                    loadMockData();
+                    isDataLoaded = true;
+                    globalData = [];
+                    populateFilters(globalData);
+                    applyFilter();
                 }
             }, 3000);
         }
@@ -589,7 +598,7 @@
 
         function renderDashboard(data) {
             if(data.length === 0) {
-                document.getElementById('table-body').innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-500">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
+                document.getElementById('table-body').innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-500">ไม่พบข้อมูล/ยังไม่มีข้อมูล</td></tr>`;
                 document.getElementById('pagination-container').innerHTML = '';
                 ['kpi-total', 'kpi-completed', 'kpi-progress', 'kpi-percent-civil', 'kpi-percent-emp'].forEach(id => {
                     document.getElementById(id).innerText = (id.includes('percent')) ? '0%' : '0';

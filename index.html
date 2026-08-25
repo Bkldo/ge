@@ -72,7 +72,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <div class="glass-card p-6 flex items-center justify-between border-l-4 border-l-green-500">
                 <div>
                     <p class="text-sm text-slate-500 font-medium mb-1">บุคลากรทั้งหมด</p>
@@ -96,10 +96,17 @@
             </div>
             <div class="glass-card p-6 flex items-center justify-between border-l-4 border-l-purple-500">
                 <div>
-                    <p class="text-sm text-slate-500 font-medium mb-1">อัตราความสำเร็จ</p>
-                    <h3 class="text-3xl font-bold text-purple-600" id="kpi-percent">0%</h3>
+                    <p class="text-sm text-slate-500 font-medium mb-1">สำเร็จ(ข้าราชการ)</p>
+                    <h3 class="text-3xl font-bold text-purple-600" id="kpi-percent-civil">0%</h3>
                 </div>
                 <div class="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 text-xl"><i class="fa-solid fa-chart-line"></i></div>
+            </div>
+            <div class="glass-card p-6 flex items-center justify-between border-l-4 border-l-indigo-500">
+                <div>
+                    <p class="text-sm text-slate-500 font-medium mb-1">สำเร็จ(ลูกจ้าง)</p>
+                    <h3 class="text-3xl font-bold text-indigo-600" id="kpi-percent-emp">0%</h3>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500 text-xl"><i class="fa-solid fa-chart-pie"></i></div>
             </div>
         </div>
 
@@ -561,8 +568,8 @@
             if(data.length === 0) {
                 document.getElementById('table-body').innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-500">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
                 document.getElementById('pagination-container').innerHTML = '';
-                ['kpi-total', 'kpi-completed', 'kpi-progress', 'kpi-percent'].forEach(id => {
-                    document.getElementById(id).innerText = (id === 'kpi-percent') ? '0%' : '0';
+                ['kpi-total', 'kpi-completed', 'kpi-progress', 'kpi-percent-civil', 'kpi-percent-emp'].forEach(id => {
+                    document.getElementById(id).innerText = (id.includes('percent')) ? '0%' : '0';
                 });
                 if(deptChartInstance) { deptChartInstance.destroy(); deptChartInstance = null; }
                 if(radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
@@ -572,12 +579,23 @@
             const totalStaff = data.length;
             const completedStaff = data.filter(d => d.completed >= d.total).length;
             const progressStaff = totalStaff - completedStaff;
-            const percent = totalStaff > 0 ? Math.round((completedStaff / totalStaff) * 100) : 0;
+            
+            const civilData = data.filter(item => !(item.level.includes('ลูกจ้าง') || EMPLOYEE_KEYWORDS.some(k => item.level.includes(k) || item.position.includes(k))));
+            const empData = data.filter(item => item.level.includes('ลูกจ้าง') || EMPLOYEE_KEYWORDS.some(k => item.level.includes(k) || item.position.includes(k)));
+            
+            const totalCivil = civilData.length;
+            const completedCivil = civilData.filter(d => d.completed >= d.total).length;
+            const percentCivil = totalCivil > 0 ? Math.round((completedCivil / totalCivil) * 100) : 0;
+            
+            const totalEmp = empData.length;
+            const completedEmp = empData.filter(d => d.completed >= d.total).length;
+            const percentEmp = totalEmp > 0 ? Math.round((completedEmp / totalEmp) * 100) : 0;
 
             document.getElementById('kpi-total').innerText = totalStaff;
             document.getElementById('kpi-completed').innerText = completedStaff;
             document.getElementById('kpi-progress').innerText = progressStaff;
-            document.getElementById('kpi-percent').innerText = percent + '%';
+            document.getElementById('kpi-percent-civil').innerText = percentCivil + '%';
+            document.getElementById('kpi-percent-emp').innerText = percentEmp + '%';
 
             renderTable(data, 1); 
 

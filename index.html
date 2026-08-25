@@ -110,16 +110,18 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="glass-card p-6 lg:col-span-2">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="glass-card p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-slate-800">อัตราการเรียนจบตามเกณฑ์ (แยกตามฝ่าย)</h2>
+                    <h2 class="text-lg font-semibold text-slate-800">อัตราการเรียนจบตามเกณฑ์ (ข้าราชการ)</h2>
                 </div>
-                <div class="relative h-72"><canvas id="deptChart"></canvas></div>
+                <div class="relative h-72"><canvas id="deptChartCivil"></canvas></div>
             </div>
             <div class="glass-card p-6">
-                <h2 class="text-lg font-semibold text-slate-800 mb-4">ภาพรวมหลักสูตร</h2>
-                <div class="relative h-72 flex justify-center items-center"><canvas id="skillRadarChart"></canvas></div>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-800">อัตราการเรียนจบตามเกณฑ์ (ลูกจ้าง)</h2>
+                </div>
+                <div class="relative h-72"><canvas id="deptChartEmp"></canvas></div>
             </div>
         </div>
 
@@ -186,6 +188,8 @@
                     <div id="modalSkillsList" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <!-- Skills will be injected here -->
                     </div>
+                    
+                    <div id="modalCertContainer" class="hidden mt-6 border-t border-slate-100 pt-6"></div>
                 </div>
                 <div class="bg-slate-50 px-6 py-4 flex justify-end">
                     <button onclick="closeModal()" class="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition shadow-sm">
@@ -203,11 +207,13 @@
         const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
 
         // ตั้งค่าตำแหน่งคอลัมน์
-        const COL_NAME = 2;       
-        const COL_POSITION = 3;   
-        const COL_DEPT = 4;       
-        const COL_LEVEL = 1;      // ประเภทบุคลากร
-        const COL_COURSES = [5];  // ชุดวิชาที่เรียนผ่านแล้ว
+        const COL_NAME = 1;       
+        const COL_POSITION = 2;   
+        const COL_DEPT = 3;       
+        const COL_COURSES_CIVIL = 4;
+        const COL_COURSES_EMP = 5;
+        const COL_LEVEL = 6;
+        const COL_CERT = 7;
 
         // กำหนดคำค้นหาสำหรับตำแหน่งที่ต้องการให้ผ่านเกณฑ์แค่ 1 หลักสูตร (สามารถเพิ่มคำอื่นๆ ในวงเล็บได้เลย)
         const EMPLOYEE_KEYWORDS = ['ลูกจ้าง','พนักงานขับ','พนักงานกวาด','นายท่า','พนักงานเก็บขน','พนักงานประจำรถ'];
@@ -215,20 +221,36 @@
         const BMA_DEPTS = [
             'ฝ่ายปกครอง', 'ฝ่ายทะเบียน', 'ฝ่ายโยธา', 'ฝ่ายสิ่งแวดล้อมและสุขาภิบาล',
             'ฝ่ายรายได้', 'ฝ่ายรักษาความสะอาดและสวนสาธารณะ', 'ฝ่ายการศึกษา',
-            'ฝ่ายคลัง', 'ฝ่ายเทศกิจ', 'ฝ่ายพัฒนาชุมชนและสวัสดิการสังคม'
+            'ฝ่ายการคลัง', 'ฝ่ายเทศกิจ', 'ฝ่ายพัฒนาชุมชนและสวัสดิการสังคม'
         ];
 
         let globalData = [];         
         let currentFilteredData = []; 
-        let deptChartInstance = null;
-        let radarChartInstance = null;
+        let deptChartCivilInstance = null;
+        let deptChartEmpInstance = null;
         let isDataLoaded = false; 
-        window.allCoursesList = new Set([
+        
+        const CIVIL_COURSES_LIST = [
             'BMA & Gender Equality: กรุงเทพมหานครกับความเสมอภาคทางเพศ',
             'Gender Mainstreaming & Budgeting: การบูรณาการและการจัดทำงบประมาณที่คำนึงถึงมิติทางเพศ',
             'Gender Equality at Work: การสร้างความเสมอภาคทางเพศในที่ทำงาน',
             'Sexual Harassment Prevention: การป้องกันการล่วงละเมิดหรือการคุกคามทางเพศในการทำงาน'
-        ]);
+        ];
+        
+        const EMP_COURSES_LIST = [
+            'Human Right & gender equality',
+            'gender norm (บรรทัดฐานทางเพศ)',
+            'BMA & gender equality (กทม.กับความเท่าเทียมและความหลากหลายทางเพศ)',
+            'EP1 : Gender Equality คืออะไร?',
+            'EP2 : การบริหารทรัพยากรบุคคลที่ปราศจากอคติ',
+            'EP3 : สวัสดิการที่ครอบคลุม ออกแบบเพื่อทุกคนไม่ใช่แค่คนกลุ่มเดียว',
+            'EP4 : วัฒนธรรมองค์กรและพื้นที่ปลอดภัย',
+            'ความหลากหลายทางเพศ และ รู้ทัน ป้องกันรับมือ การล่วงละเมิดทางเพศ',
+            'การวิเคราะห์เรื่องเพศสภาพเพื่อผลักดันเรื่องเพศเข้าสู่การบริการ',
+            'เจตนารมณ์เป็น “องค์กรไร้ความรุนแรง”'
+        ];
+
+        window.allCoursesList = new Set([...CIVIL_COURSES_LIST, ...EMP_COURSES_LIST]);
 
         // ตัวแปรสำหรับระบบ Pagination
         let tableDataForPagination = [];
@@ -403,18 +425,22 @@
             ];
 
             let rawRows = mockRaw.map(item => {
-                return {
-                    c: [
-                        null, null, 
-                        { v: item.name }, 
-                        { v: item.position }, 
-                        { v: item.dept }, 
-                        null, 
-                        { v: item.level }, 
-                        { v: item.courses.join(', ') }, 
-                        null, null
-                    ]
-                };
+                let row = { c: Array(10).fill(null) };
+                row.c[COL_NAME] = { v: item.name };
+                row.c[COL_POSITION] = { v: item.position };
+                row.c[COL_DEPT] = { v: item.dept };
+                row.c[COL_LEVEL] = { v: item.level };
+                row.c[COL_CERT] = { v: "https://drive.google.com/file/d/test" };
+                const isEmp = item.level.includes('ลูกจ้าง') || EMPLOYEE_KEYWORDS.some(k => item.level.includes(k) || item.position.includes(k));
+                const targetList = isEmp ? EMP_COURSES_LIST : CIVIL_COURSES_LIST;
+                const coursesToUse = targetList.slice(0, Math.min(item.courses.length, targetList.length));
+                
+                if (isEmp) {
+                    row.c[COL_COURSES_EMP] = { v: coursesToUse.join(', ') };
+                } else {
+                    row.c[COL_COURSES_CIVIL] = { v: coursesToUse.join(', ') };
+                }
+                return row;
             });
 
             globalData = processSheetData(rawRows);
@@ -436,13 +462,18 @@
                 const position = getVal(COL_POSITION);
                 const dept = getVal(COL_DEPT);
                 const level = getVal(COL_LEVEL);
+                const cert = getVal(COL_CERT);
 
                 if(!name || name.includes('เลือก') || name.includes('ชื่อ - นามสกุล')) return;
 
+                const isEmployee = level.includes('ลูกจ้าง') || EMPLOYEE_KEYWORDS.some(k => level.includes(k) || position.includes(k));
+
                 let allCoursesRaw = "";
-                COL_COURSES.forEach(colIdx => {
-                    allCoursesRaw += getVal(colIdx) + ",";
-                });
+                if (isEmployee) {
+                    allCoursesRaw = getVal(COL_COURSES_EMP);
+                } else {
+                    allCoursesRaw = getVal(COL_COURSES_CIVIL);
+                }
                 
                 // แยกรายวิชาตามเครื่องหมายลูกน้ำ
                 const courseArray = allCoursesRaw.split(',').filter(item => item.trim().length > 0);
@@ -474,11 +505,17 @@
                         position: position || '-',
                         dept: dept || 'ไม่ระบุฝ่าย',
                         level: level || '-',
+                        cert: cert || null,
+                        isEmployee: isEmployee,
                         skills: {},
                         completed: 0,
                         total: 0
                     });
                     existingIndex = staffMap.length - 1;
+                } else {
+                    if (cert && !staffMap[existingIndex].cert) {
+                        staffMap[existingIndex].cert = cert;
+                    }
                 }
 
                 let personObj = staffMap[existingIndex];
@@ -486,8 +523,15 @@
                 courseArray.forEach(course => {
                     let cName = course.trim();
                     if(cName) {
-                        personObj.skills[cName] = true;
-                        window.allCoursesList.add(cName);
+                        const targetList = isEmployee ? EMP_COURSES_LIST : CIVIL_COURSES_LIST;
+                        const matched = targetList.find(c => c.toLowerCase().includes(cName.toLowerCase()) || cName.toLowerCase().includes(c.toLowerCase()));
+                        if (matched) {
+                            personObj.skills[matched] = true;
+                            window.allCoursesList.add(matched);
+                        } else {
+                            personObj.skills[cName] = true;
+                            window.allCoursesList.add(cName);
+                        }
                     }
                 });
 
@@ -498,27 +542,7 @@
             return staffMap; 
         }
 
-        function calculateSkills(dataArray) {
-            let counts = {};
-            window.allCoursesList.forEach(c => counts[c] = 0);
-            
-            dataArray.forEach(emp => {
-                for (let key in emp.skills) {
-                    if (emp.skills[key] && counts.hasOwnProperty(key)) {
-                        counts[key]++;
-                    }
-                }
-            });
-            
-            let totalValidStaff = dataArray.length;
-            if(totalValidStaff === 0) return counts;
 
-            for (let key in counts) {
-                counts[key] = Math.round((counts[key] / totalValidStaff) * 100);
-            }
-
-            return counts;
-        }
 
         function populateFilters(data) {
             const deptSelect = document.getElementById('deptFilter');
@@ -560,19 +584,18 @@
                 return matchDept && matchLevel && matchSearch;
             });
 
-            const skillsCount = calculateSkills(currentFilteredData);
-            renderDashboard(currentFilteredData, skillsCount);
+            renderDashboard(currentFilteredData);
         }
 
-        function renderDashboard(data, skillsCount) {
+        function renderDashboard(data) {
             if(data.length === 0) {
                 document.getElementById('table-body').innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-500">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
                 document.getElementById('pagination-container').innerHTML = '';
                 ['kpi-total', 'kpi-completed', 'kpi-progress', 'kpi-percent-civil', 'kpi-percent-emp'].forEach(id => {
                     document.getElementById(id).innerText = (id.includes('percent')) ? '0%' : '0';
                 });
-                if(deptChartInstance) { deptChartInstance.destroy(); deptChartInstance = null; }
-                if(radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
+                if(deptChartCivilInstance) { deptChartCivilInstance.destroy(); deptChartCivilInstance = null; }
+                if(deptChartEmpInstance) { deptChartEmpInstance.destroy(); deptChartEmpInstance = null; }
                 return;
             }
 
@@ -599,99 +622,68 @@
 
             renderTable(data, 1); 
 
-            const deptStats = {};
+            const deptStatsCivil = {};
+            const deptStatsEmp = {};
             const allDepts = [...new Set([...BMA_DEPTS, ...globalData.map(item => item.dept)])]
                                 .filter(d => d !== '-' && d !== '' && d !== 'ไม่ระบุฝ่าย');
+            
             allDepts.forEach(dept => {
-                deptStats[dept] = { complete: 0, learning: 0 };
+                deptStatsCivil[dept] = { complete: 0, learning: 0 };
+                deptStatsEmp[dept] = { complete: 0, learning: 0 };
             });
 
             data.forEach(emp => {
-                if(deptStats[emp.dept]) {
-                    if(emp.completed >= emp.total) deptStats[emp.dept].complete++;
-                    else deptStats[emp.dept].learning++;
+                const targetStats = emp.isEmployee ? deptStatsEmp : deptStatsCivil;
+                if(targetStats[emp.dept]) {
+                    if(emp.completed >= emp.total) targetStats[emp.dept].complete++;
+                    else targetStats[emp.dept].learning++;
                 }
             });
 
-            const labels = Object.keys(deptStats);
-            const dataComplete = labels.map(l => deptStats[l].complete);
-            const dataLearning = labels.map(l => deptStats[l].learning);
+            const renderBarChart = (ctxId, instance, stats) => {
+                const labels = Object.keys(stats);
+                const dataComplete = labels.map(l => stats[l].complete);
+                const dataLearning = labels.map(l => stats[l].learning);
 
-            if(deptChartInstance) deptChartInstance.destroy();
-            const ctxDept = document.getElementById('deptChart').getContext('2d');
-            deptChartInstance = new Chart(ctxDept, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { 
-                            label: 'เรียนครบตามเกณฑ์', 
-                            data: dataComplete, 
-                            backgroundColor: '#10b981', 
-                            borderRadius: 4,
-                            datalabels: { color: '#ffffff', font: { weight: '600' } }
-                        },
-                        { 
-                            label: 'อยู่ระหว่างเรียน', 
-                            data: dataLearning, 
-                            backgroundColor: '#fcd34d', 
-                            borderRadius: 4,
-                            datalabels: { color: '#78350f', font: { weight: '600' } }
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { x: { stacked: true }, y: { stacked: true, ticks: { stepSize: 1 } } },
-                    plugins: { 
-                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
-                        datalabels: {
-                            display: function(context) { return context.dataset.data[context.dataIndex] > 0; },
-                            anchor: 'center', align: 'center'
-                        }
-                    }
-                }
-            });
-
-            const skillLabels = Object.keys(skillsCount);
-            const skillData = skillLabels.map(l => skillsCount[l]);
-
-            if(radarChartInstance) radarChartInstance.destroy();
-            const ctxRadar = document.getElementById('skillRadarChart').getContext('2d');
-            radarChartInstance = new Chart(ctxRadar, {
-                type: 'bar',
-                data: {
-                    labels: skillLabels.map(l => l.length > 25 ? l.substring(0,25)+'...' : l),
-                    datasets: [{
-                        label: 'อัตราผู้เรียนผ่าน (%)',
-                        data: skillData,
-                        backgroundColor: 'rgba(22, 163, 74, 0.6)',
-                        borderColor: '#16a34a',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true, maintainAspectRatio: false, layout: { padding: 15 },
-                    scales: { 
-                        x: { min: 0, max: 100 },
-                        y: {
-                            ticks: {
-                                crossAlign: 'far'
+                if(instance) instance.destroy();
+                const ctx = document.getElementById(ctxId).getContext('2d');
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { 
+                                label: 'เรียนครบตามเกณฑ์', 
+                                data: dataComplete, 
+                                backgroundColor: '#10b981', 
+                                borderRadius: 4,
+                                datalabels: { color: '#ffffff', font: { weight: '600' } }
+                            },
+                            { 
+                                label: 'อยู่ระหว่างเรียน', 
+                                data: dataLearning, 
+                                backgroundColor: '#fcd34d', 
+                                borderRadius: 4,
+                                datalabels: { color: '#78350f', font: { weight: '600' } }
                             }
-                        }
+                        ]
                     },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                title: function(context) { return skillLabels[context[0].dataIndex]; }
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { x: { stacked: true }, y: { stacked: true, ticks: { stepSize: 1 } } },
+                        plugins: { 
+                            legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+                            datalabels: {
+                                display: function(context) { return context.dataset.data[context.dataIndex] > 0; },
+                                anchor: 'center', align: 'center'
                             }
                         }
                     }
-                }
-            });
-        }
+                });
+            };
+
+            deptChartCivilInstance = renderBarChart('deptChartCivil', deptChartCivilInstance, deptStatsCivil);
+            deptChartEmpInstance = renderBarChart('deptChartEmp', deptChartEmpInstance, deptStatsEmp);        }
 
         function renderTable(dataArray, page = 1) {
             tableDataForPagination = dataArray; 
@@ -838,7 +830,7 @@
             const skillsListEl = document.getElementById('modalSkillsList');
             let skillsHtml = '';
             
-            const skillsOrder = Array.from(window.allCoursesList);
+            const skillsOrder = person.isEmployee ? EMP_COURSES_LIST : CIVIL_COURSES_LIST;
             
             skillsOrder.forEach(skill => {
                 const passed = person.skills[skill];
@@ -862,6 +854,28 @@
             });
             
             skillsListEl.innerHTML = skillsHtml;
+
+            const certContainer = document.getElementById('modalCertContainer');
+            if (certContainer) {
+                if (!person.isEmployee && person.cert) {
+                    certContainer.innerHTML = `
+                        <h4 class="font-semibold text-slate-700 mb-3"><i class="fa-solid fa-award text-amber-500 mr-2"></i>ใบประกาศนียบัตร</h4>
+                        <a href="${person.cert}" target="_blank" class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition w-max">
+                            <div class="w-10 h-10 rounded bg-white shadow-sm flex items-center justify-center text-red-500 text-lg">
+                                <i class="fa-solid fa-file-pdf"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-semibold text-slate-700">ใบประกาศนียบัตร</div>
+                                <div class="text-xs text-slate-500">คลิกเพื่อเปิดดูไฟล์แนบ</div>
+                            </div>
+                        </a>
+                    `;
+                    certContainer.classList.remove('hidden');
+                } else {
+                    certContainer.innerHTML = '';
+                    certContainer.classList.add('hidden');
+                }
+            }
             
             const modal = document.getElementById('personModal');
             modal.classList.remove('hidden');
